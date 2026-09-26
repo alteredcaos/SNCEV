@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Cartilla Electrónica de Vacunación — {{ paciente.nombre_completo }}</title>
+<link rel="stylesheet" href="cartilla_estilos.css">
+</head>
+{#
+  ============================================================================
+  PLANTILLA MAESTRA DE CARTILLA — SNCEV
+  ============================================================================
+  Variables esperadas en el contexto (inyectadas desde Cartilla Service):
+
+    tipo_cartilla: "nino_nina" | "adolescente" | "mujer" | "adulto" | "adulto_mayor"
+    paciente: { nombre_completo, curp, fecha_nacimiento, sexo, edad_texto,
+                lugar_nacimiento, unidad_registro, folio }
+    responsable: { nombre_completo, parentesco, telefono } | None
+    vacunas_aplicadas: [ { vacuna, serie, fecha_aplicacion, lote, unidad, estado } ]
+    vacunas_pendientes: [ { vacuna, serie, fecha_limite, vencida } ]
+    tamizajes: [ { tipo, fecha, resultado, clase_css } ]          (solo nino_nina)
+    somatometria: [ { fecha, edad, peso, talla, pc, imc, percentil_clase } ]  (solo nino_nina/adolescente)
+    desarrollo: [ { fecha, area, resultado } ]                     (solo nino_nina)
+    firma: { hash_sha256, fecha_firma, firmado_por, cedula, qr_data_uri }
+    qr_header_data_uri: string  (QR pequeño del encabezado, mismo token)
+    tiene_rezago: bool
+  ============================================================================
+#}
+<body class="cartilla-{{ tipo_cartilla }}">
+
+    <!-- ============================== ENCABEZADO ============================== -->
+    <div class="encabezado-institucional" data-folio="{{ paciente.folio }}">
+        <div class="logo-bloque">
+            <img src="logo_secretaria_salud.svg" alt="Secretaría de Salud">
+            <div class="titulo-cartilla">
+                <h1>Cartilla Electrónica de Vacunación</h1>
+                <h2>
+                    {% if tipo_cartilla == 'nino_nina' %}Niña y Niño
+                    {% elif tipo_cartilla == 'adolescente' %}Adolescente
+                    {% elif tipo_cartilla == 'mujer' %}Mujer
+                    {% elif tipo_cartilla == 'adulto' %}Adulto
+                    {% elif tipo_cartilla == 'adulto_mayor' %}Adulto Mayor
+                    {% endif %}
+                    — Sistema Nacional de Salud
+                </h2>
+            </div>
+        </div>
+        <div class="qr-bloque">
+            <img src="{{ qr_header_data_uri }}" alt="QR verificación">
+            <div>Verificar</div>
+        </div>
+    </div>
+
+    <!-- ========================= FICHA DE IDENTIFICACIÓN ======================= -->
+    <div class="ficha-identificacion">
+        <table>
+            <tr>
+                <td colspan="4" class="campo campo-completo">
+                    <label>Nombre completo</label>
+                    <div class="valor">{{ paciente.nombre_completo }}</div>
+                </td>
+            </tr>
+            <tr>
+                <td class="campo">
+                    <label>Sexo</label>
+                    <div class="valor">{{ paciente.sexo }}</div>
+                </td>
+                <td class="campo">
+                    <label>Fecha de nacimiento</label>
+                    <div class="valor">{{ paciente.fecha_nacimiento }}</div>
+                </td>
+                <td class="campo">
+                    <label>Edad actual</label>
+                    <div class="valor">{{ paciente.edad_texto }}</div>
+                </td>
+                <td class="campo">
+                    <label>CURP</label>
+                    <div class="valor curp">{{ paciente.curp }}</div>
+                </td>
+            </tr>
+            <tr>
+                <td colspan="2" class="campo">
+                    <label>Lugar de nacimiento</label>
+                    <div class="valor">{{ paciente.lugar_nacimiento }}</div>
+                </td>
+                <td colspan="2" class="campo">
+                    <label>Unidad médica de registro</label>
+                    <div class="valor">{{ paciente.unidad_registro }}</div>
+                </td>
+            </tr>
+            {% if responsable %}
+            <tr>
+                <td colspan="4" class="campo campo-completo">
+                    <label>{{ responsable.parentesco }} responsable</label>
+                    <div class="valor">{{ responsable.nombre_completo }} — {{ responsable.telefono }}</div>
+                </td>
+            </tr>
+            {% endif %}
+        </table>
+    </div>
+
+    {% if tiene_rezago %}
+    <div class="alerta-rezago">
+        ⚠ Este paciente tiene una o más dosis pendientes fuera del rango de edad óptimo.
+        Consulte la sección de esquema de vacunación.
+    </div>
+    {% endif %}
+
+    <!-- ============================ ESQUEMA DE VACUNACIÓN ====================== -->
+    <div class="seccion">
+        <div class="seccion-titulo">
+            <span class="icono"></span>
+            <h3>Esquema de Vacunación</h3>
+            <span class="subtitulo">{{ vacunas_aplicadas|length }} dosis aplicadas</span>
+        </div>
+
+        <table class="tabla-vacunas">
+            <thead>
+                <tr>
+                    <th>Vacuna</th>
+                    <th>Dosis</th>
+                    <th>Fecha aplicación</th>
+                    <th>Lote</th>
+                    <th>Unidad médica</th>
+                    <th>Estado</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for v in vacunas_aplicadas %}
+                <tr>
+                    <td>{{ v.vacuna }}</td>
+                    <td>{{ v.serie }}</td>
+                    <td>{{ v.fecha_aplicacion }}</td>
+                    <td>{{ v.lote or '—' }}</td>
+                    <td>{{ v.unidad }}</td>
+                    <td><span class="badge badge-aplicada">Aplicada</span></td>
+                </tr>
+                {% endfor %}
+
+                {% for v in vacunas_pendientes %}
+                <tr>
+                    <td>{{ v.vacuna }}</td>
+                    <td>{{ v.serie }}</td>
+                    <td>—</td>
+                    <td>—</td>
+                    <td>—</td>
+                    <td>
+                        {% if v.vencida %}
+                        <span class="badge badge-vencida">Vencida — límite {{ v.fecha_limite }}</span>
+                        {% elif v.fecha_limite %}
+                        <span class="badge badge-pendiente">Pendiente — antes de {{ v.fecha_limite }}</span>
+                        {% else %}
+                        <span class="badge badge-pendiente">Pendiente</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    {# =========================================================================
+       SECCIÓN EXCLUSIVA: Tamizajes neonatales
+       Solo aplica a cartilla Niña/Niño
+       ========================================================================= #}
+    {% if tipo_cartilla == 'nino_nina' and tamizajes %}
+    <div class="seccion">
+        <div class="seccion-titulo">
+            <span class="icono"></span>
+            <h3>Tamizajes Neonatales</h3>
+        </div>
+        <div class="grid-tamizajes">
+            {% for t in tamizajes %}
+            <div class="tarjeta-tamiz">
+                <div class="nombre-tamiz">{{ t.tipo }}</div>
+                <div class="resultado-tamiz {{ t.clase_css }}">{{ t.resultado }}</div>
+                <div style="font-size:7pt;color:#73726c;">Realizado: {{ t.fecha }}</div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    {# =========================================================================
+       SECCIÓN EXCLUSIVA: Somatometría / curvas de crecimiento
+       Aplica a Niña/Niño y Adolescente
+       ========================================================================= #}
+    {% if tipo_cartilla in ['nino_nina', 'adolescente'] and somatometria %}
+    <div class="seccion">
+        <div class="seccion-titulo">
+            <span class="icono"></span>
+            <h3>Somatometría</h3>
+            <span class="subtitulo">Peso, talla y desarrollo físico</span>
+        </div>
+        <table class="tabla-somatometria">
+            <thead>
+                <tr>
+                    <th>Fecha</th>
+                    <th>Edad</th>
+                    <th>Peso (kg)</th>
+                    <th>Talla (cm)</th>
+                    {% if tipo_cartilla == 'nino_nina' %}<th>P. cefálico (cm)</th>{% endif %}
+                    <th>IMC</th>
+                    <th>Percentil</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for s in somatometria %}
+                <tr>
+                    <td>{{ s.fecha }}</td>
+                    <td>{{ s.edad }}</td>
+                    <td>{{ s.peso }}</td>
+                    <td>{{ s.talla }}</td>
+                    {% if tipo_cartilla == 'nino_nina' %}<td>{{ s.pc or '—' }}</td>{% endif %}
+                    <td>{{ s.imc }}</td>
+                    <td class="{{ s.percentil_clase }}">{{ s.percentil_texto }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+
+    {# =========================================================================
+       SECCIÓN EXCLUSIVA: Desarrollo psicomotor
+       Solo aplica a cartilla Niña/Niño
+       ========================================================================= #}
+    {% if tipo_cartilla == 'nino_nina' and desarrollo %}
+    <div class="seccion">
+        <div class="seccion-titulo">
+            <span class="icono"></span>
+            <h3>Evaluación del Desarrollo</h3>
+        </div>
+        <table class="tabla-somatometria">
+            <thead>
+                <tr><th>Fecha</th><th>Área evaluada</th><th>Resultado</th></tr>
+            </thead>
+            <tbody>
+                {% for d in desarrollo %}
+                <tr>
+                    <td>{{ d.fecha }}</td>
+                    <td>{{ d.area }}</td>
+                    <td>{{ d.resultado }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+
+    {# =========================================================================
+       SECCIÓN EXCLUSIVA: Salud reproductiva
+       Solo aplica a cartilla Mujer
+       ========================================================================= #}
+    {% if tipo_cartilla == 'mujer' and salud_reproductiva %}
+    <div class="seccion">
+        <div class="seccion-titulo">
+            <span class="icono"></span>
+            <h3>Salud Sexual y Reproductiva</h3>
+        </div>
+        <table class="tabla-somatometria">
+            <thead>
+                <tr><th>Fecha</th><th>Estudio / control</th><th>Resultado</th></tr>
+            </thead>
+            <tbody>
+                {% for sr in salud_reproductiva %}
+                <tr>
+                    <td>{{ sr.fecha }}</td>
+                    <td>{{ sr.estudio }}</td>
+                    <td>{{ sr.resultado }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+
+    {# =========================================================================
+       SECCIÓN EXCLUSIVA: Enfermedades crónicas / control
+       Solo aplica a Adulto y Adulto Mayor
+       ========================================================================= #}
+    {% if tipo_cartilla in ['adulto', 'adulto_mayor'] and control_cronico %}
+    <div class="seccion">
+        <div class="seccion-titulo">
+            <span class="icono"></span>
+            <h3>Control de Enfermedades Crónicas</h3>
+        </div>
+        <table class="tabla-somatometria">
+            <thead>
+                <tr><th>Fecha</th><th>Padecimiento</th><th>Indicador</th><th>Valor</th></tr>
+            </thead>
+            <tbody>
+                {% for c in control_cronico %}
+                <tr>
+                    <td>{{ c.fecha }}</td>
+                    <td>{{ c.padecimiento }}</td>
+                    <td>{{ c.indicador }}</td>
+                    <td>{{ c.valor }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+
+    <!-- ============================ BLOQUE DE FIRMA ============================ -->
+    <div class="bloque-firma">
+        <div class="datos-firma">
+            <p>
+                Documento generado y firmado electrónicamente el {{ firma.fecha_firma }}
+                por {{ firma.firmado_por }}{% if firma.cedula %} (Cédula profesional {{ firma.cedula }}){% endif %}.
+            </p>
+            <p>Identificador de verificación: <strong>{{ paciente.folio }}</strong></p>
+            <p class="hash-firma">SHA-256: {{ firma.hash_sha256 }}</p>
+        </div>
+        <div class="qr-verificacion">
+            <img src="{{ firma.qr_data_uri }}" alt="QR de verificación">
+            <div class="leyenda">Escanee para verificar autenticidad</div>
+        </div>
+    </div>
+
+    <div class="aviso-privacidad">
+        Este documento contiene datos personales y de salud protegidos conforme a la Ley General de
+        Protección de Datos Personales en Posesión de Sujetos Obligados. Su reproducción o divulgación
+        no autorizada está prohibida. Para reportar uso indebido o solicitar corrección de datos,
+        consulte al responsable de la unidad médica de registro.
+    </div>
+
+</body>
+</html>
