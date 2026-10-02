@@ -1,0 +1,10 @@
+SET
+INSERT 0 4
+DO
+INSERT 0 4
+INSERT 0 4
+psql:07_permisos_inventario.sql:71: NOTICE:  ============================================
+psql:07_permisos_inventario.sql:71: NOTICE:  SNCEV — Módulo 07 (permisos de inventario) instalado
+psql:07_permisos_inventario.sql:71: NOTICE:    Permisos INVENTARIO_*: 4
+psql:07_permisos_inventario.sql:71: NOTICE:  ============================================
+DO
