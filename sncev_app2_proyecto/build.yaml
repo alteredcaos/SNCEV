@@ -1,8 +1,0 @@
-# Serializa/deserializa JSON en snake_case, como define la especificación del API
-# (id_mapping, local_id, cobertura_pct...). Sin esto json_serializable espera camelCase.
-targets:
-  $default:
-    builders:
-      json_serializable:
-        options:
-          field_rename: snake

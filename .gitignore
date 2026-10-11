@@ -1,17 +1,41 @@
-# Entornos virtuales
-venv/
-.venv/
-__pycache__/
-*.pyc
+﻿# Visual Studio
+.vs/
+**/bin/
+**/obj/
+*.user
+*.suo
+*.rsuser
 
-# Variables de entorno y llaves secretas
+# Node / React
+**/node_modules/
+**/dist/
+**/build/
+
+# Secretos y configuraciones locales
 .env
-sncev_api/.env
-certs/
+.env.*
+!.env.example
+**/appsettings.Development.json
+**/appsettings.Local.json
+**/secrets.json
+*.pfx
+*.p12
 *.pem
+*.key
+*.keystore
+*.jks
 
-# Almacenamiento local y dependencias frontend
-storage/
-frontend/node_modules/
-frontend/dist/
-.DS_Store
+# Bases de datos locales
+*.db
+*.db3
+*.sqlite
+*.sqlite3
+*.mdf
+*.ldf
+*.bak
+
+# Temporales
+*.log
+*.tmp
+*.cache
+*.sqlite-backup
